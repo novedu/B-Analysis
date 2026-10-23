@@ -1,23 +1,22 @@
 # b-fenxi · B站数据导出器
 
-一个浏览器扩展：把你自己的 B 站**观看历史、关注列表、收藏夹、稍后再看**导出成一个 JSON 文件。
+一个浏览器扩展：把你自己的 B 站**观看历史、关注列表、收藏夹、稍后再看**导出成 JSON 或 CSV 文件。
 
 只读。不点赞、不评论、不关注。没有后端服务器，数据只在你自己的电脑上。
 
 > 起因很简单：B 站只保留约 1200 条观看历史（大概 40 天），年度报告也只给你几个汇总数字。
 > 想回看"我这一年到底看了什么"，得自己攒。
 
-![界面](docs/screenshot-run.png)
 
 <p align="center">
-  <img src="docs/screenshot-idle.png" width="24%" alt="待开始">
-  <img src="docs/screenshot-run.png" width="24%" alt="采集中">
-  <img src="docs/screenshot-done.png" width="24%" alt="已完成">
-  <img src="docs/screenshot-resume.png" width="24%" alt="断点续跑">
+  <img src="docs/screenshot-idle.png" width="170" alt="待开始">
+  <img src="docs/screenshot-run.png" width="170" alt="采集中">
+  <img src="docs/screenshot-done.png" width="170" alt="已完成">
+  <img src="docs/screenshot-resume.png" width="170" alt="断点续跑">
 </p>
 
 <p align="center">
-  <img src="docs/screenshot-csv.png" width="46%" alt="CSV 导出">
+  <img src="docs/screenshot-csv.png" width="260" alt="CSV 导出">
 </p>
 
 ---
@@ -130,9 +129,9 @@ Edge 同理：`edge://extensions/`。
   ],
 
   "diag": {
-    "history": 1208,
-    "followings": 1818,
-    "favorites": 258,
+    "history": 964,
+    "followings": 1203,
+    "favorites": 187,
     "toview": 8,
     "errors": []            // 出错的阶段：[{ phase, code, message }]
   }

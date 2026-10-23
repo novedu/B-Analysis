@@ -341,6 +341,8 @@
         state: base,
         onProgress: (k, msg) => {
           if (rows[k]) setRow(k, 'run', msg);
+          const i = ORDER.indexOf(k);
+          if (i >= 0) setProgress(i + 0.5, 'run');
           setNote('正在采集…');
         },
         onCheckpoint: (s) => { st = s; saveCkpt(s); },
