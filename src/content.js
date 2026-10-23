@@ -77,6 +77,12 @@
   .bar[data-state="err"] i{ background:#f04438; }
   .note{ font-size:11.5px; color:var(--muted); padding:10px 0 14px; line-height:1.6; }
   .note.err{ color:#d92d20; }
+  .relink{
+    display:inline-block; margin:-4px 0 12px; font-size:11.5px; color:var(--muted);
+    text-decoration:none; border-bottom:1px dashed #c9ced6;
+  }
+  .relink:hover{ color:var(--accent); border-color:var(--accent); }
+  .relink[hidden]{ display:none; }
 
   .chips{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:2px 0 12px; }
   .chip{ background:var(--soft); border-radius:11px; padding:9px 10px; }
@@ -130,6 +136,7 @@
         </div>
         <div class="bar"><i></i></div>
         <p class="note">约需 1–3 分钟，取决于你的数据量。过程中请不要关闭或刷新本页。</p>
+        <a class="relink" data-a="restart" href="#" hidden>重新开始</a>
         <div class="chips" hidden>
           <div class="chip"><b data-c="history">0</b><span>条历史</span></div>
           <div class="chip"><b data-c="following">0</b><span>个关注</span></div>
@@ -157,6 +164,8 @@
     </button>
   </div>`;
 
+  const CKPT = 'bfx-ckpt-v1';
+
   const host = document.createElement('div');
   host.id = 'bfx-host';
   const root = host.attachShadow({ mode: 'open' });
@@ -172,17 +181,66 @@
     toview: $('.row[data-k="toview"]')
   };
   const ORDER = ['history', 'following', 'favorite', 'toview'];
+  const LABEL = { history: '观看历史', following: '关注列表', favorite: '收藏夹', toview: '稍后再看' };
   const barFill = $('.bar i');
   const note = $('.note');
   const chips = $('.chips');
   const btnStart = $('[data-a="start"]');
   const btnDownload = $('[data-a="download"]');
   const btnCopy = $('[data-a="copy"]');
+  const linkRestart = $('[data-a="restart"]');
 
-  let data = null;
-  let cancelled = false;
+  let st = null;
   let running = false;
+  let cancelled = false;
   let startedAt = 0;
+
+  // ---------- 断点存取 ----------
+  function loadCkpt() {
+    try {
+      const raw = sessionStorage.getItem(CKPT);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return s && s.version === 1 ? s : null;
+    } catch (e) { return null; }
+  }
+  function saveCkpt(s) {
+    try { sessionStorage.setItem(CKPT, JSON.stringify(s)); } catch (e) { /* 超出配额就算了 */ }
+  }
+  function clearCkpt() {
+    try { sessionStorage.removeItem(CKPT); } catch (e) {}
+  }
+
+  // ---------- 渲染 ----------
+  function counts(s) {
+    if (!s) return { history: 0, following: 0, favorite: 0, toview: 0 };
+    return {
+      history: s.history.items.length,
+      following: s.followings.items.length,
+      favorite: Object.values(s.favorites.map).reduce((n, v) => n + v.length, 0),
+      toview: s.toview.items.length
+    };
+  }
+
+  function paint(s) {
+    if (!s) return;
+    const c = counts(s);
+    const done = {
+      history: s.history.done,
+      following: s.followings.done,
+      favorite: s.favorites.done,
+      toview: s.toview.done
+    };
+    ORDER.forEach((k) => {
+      const n = c[k];
+      const unit = k === 'following' ? ' 个' : ' 条';
+      if (done[k]) setRow(k, 'done', n + unit);
+      else if (n > 0) setRow(k, 'run', n + unit);
+      else setRow(k, '', '等待');
+    });
+    const finished = ORDER.filter((k) => done[k]).length;
+    setProgress(finished, finished === ORDER.length ? 'done' : 'run');
+  }
 
   function setRow(k, state, text) {
     const r = rows[k];
@@ -192,118 +250,131 @@
   }
 
   function setProgress(i, state) {
-    const pct = Math.min(100, (i / ORDER.length) * 100);
-    barFill.style.width = `${pct}%`;
+    barFill.style.width = `${Math.min(100, (i / ORDER.length) * 100)}%`;
     if (state) $('.bar').dataset.state = state;
   }
 
-  function markDone(k) {
-    const r = rows[k];
-    if (r && r.dataset.state !== 'done') r.dataset.state = 'done';
+  function setNote(text, isErr) {
+    note.className = isErr ? 'note err' : 'note';
+    note.textContent = text;
   }
 
-  function reset() {
-    data = null;
-    cancelled = false;
-    ORDER.forEach((k) => setRow(k, '', '待开始'));
-    setProgress(0, 'idle');
-    note.className = 'note';
-    note.textContent = '约需 1–3 分钟，取决于你的数据量。过程中请不要关闭或刷新本页。';
+  // ---------- 初始态 ----------
+  function showIdle() {
+    st = loadCkpt();
+    btnDownload.hidden = true;
+    btnCopy.hidden = true;
     chips.hidden = true;
     btnStart.hidden = false;
     btnStart.disabled = false;
-    btnStart.textContent = '开始导出';
-    btnDownload.hidden = true;
-    btnCopy.hidden = true;
+
+    if (st) {
+      paint(st);
+      const p = window.BiliCollector.pending(st);
+      if (p.length) {
+        btnStart.textContent = '继续导出';
+        const c = counts(st);
+        setNote(`上次中断在「${LABEL[p[0]]}」。已存：历史 ${c.history} 条 · 关注 ${c.following} 个 · 收藏 ${c.favorite} 条。点继续只补没跑完的部分。`);
+        linkRestart.hidden = false;
+      } else {
+        btnStart.textContent = '开始导出';
+        setProgress(0, 'idle');
+      }
+    } else {
+      ORDER.forEach((k) => setRow(k, '', '待开始'));
+      btnStart.textContent = '开始导出';
+      setProgress(0, 'idle');
+      setNote('约需 1–3 分钟，取决于你的数据量。过程中请不要关闭或刷新本页。');
+      linkRestart.hidden = true;
+    }
   }
 
+  // ---------- 开始 / 继续 ----------
   async function start() {
     if (running) { cancelled = true; btnStart.textContent = '正在停止…'; return; }
+
     running = true;
     cancelled = false;
-    data = null;
     startedAt = Date.now();
     chips.hidden = true;
     btnDownload.hidden = true;
     btnCopy.hidden = true;
     btnStart.textContent = '停止';
     btnStart.disabled = false;
-    note.className = 'note';
-    note.textContent = '正在连接…';
-    ORDER.forEach((k) => setRow(k, '', '等待'));
+    linkRestart.hidden = true;
+    setNote('正在连接…');
     setProgress(0, 'run');
 
-    let idx = 0;
-    const onProgress = (key, msg) => {
-      const i = ORDER.indexOf(key);
-      if (i < 0) return;
-      for (let k = 0; k < i; k++) markDone(ORDER[k]);
-      if (i >= idx) {
-        idx = i;
-        setRow(key, 'run', msg);
-        setProgress(i + 0.5, 'run');
-      } else {
-        setRow(key, 'run', msg);
-      }
-      note.textContent = '正在采集…';
-    };
+    const base = st && window.BiliCollector.pending(st).length ? st : null;
 
-    let result;
     try {
-      result = await window.BiliCollector.collect({ onProgress, isCancelled: () => cancelled });
+      st = await window.BiliCollector.collect({
+        state: base,
+        onProgress: (k, msg) => {
+          if (rows[k]) setRow(k, 'run', msg);
+          setNote('正在采集…');
+        },
+        onCheckpoint: (s) => { st = s; saveCkpt(s); },
+        isCancelled: () => cancelled
+      });
     } catch (e) {
       running = false;
-      setProgress(0, 'err');
-      note.className = 'note err';
-      note.textContent = '采集中断：' + (e && e.message ? e.message : e);
-      btnStart.textContent = '重新开始';
+      setNote('采集中断：' + ((e && e.message) || e) + '。已采集的部分保留，可以点「继续导出」接着跑。', true);
+      btnStart.textContent = '继续导出';
       return;
     }
 
     running = false;
     const secs = Math.round((Date.now() - startedAt) / 1000);
     const dur = secs > 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`;
+    const pend = window.BiliCollector.pending(st);
+    const errs = (st.errors || []);
+    const c = counts(st);
 
-    if (result.diag && result.diag.fatal) {
-      setProgress(0, 'err');
-      note.className = 'note err';
-      note.textContent = result.diag.fatal + '。请确认已在当前浏览器登录 B 站。';
-      btnStart.textContent = '重试';
-      btnStart.disabled = false;
+    paint(st);
+
+    // 完成
+    if (!pend.length && !errs.length) {
+      clearCkpt();
+      const out = window.BiliCollector.toOutput(st);
+      window.__BFX_LAST__ = out;
+      data = out;
+
+      $('[data-c="history"]').textContent = c.history.toLocaleString();
+      $('[data-c="following"]').textContent = c.following.toLocaleString();
+      $('[data-c="favorite"]').textContent = c.favorite.toLocaleString();
+      chips.hidden = false;
+
+      setNote(cancelled ? `已停止，用时 ${dur}。当前结果可以下载。` : `完成，用时 ${dur}。数据只在本机，未上传。`);
+      btnStart.hidden = true;
+      btnDownload.hidden = false;
+      btnCopy.hidden = false;
       return;
     }
 
-    data = result;
-    const h = result.history.length;
-    const f = result.followings.length;
-    const fav = Object.values(result.favorites).reduce((n, v) => n + v.length, 0);
-    const tv = result.toview.length;
+    // 有阶段没跑完
+    const first = errs[firstErrorIndex(errs)] || errs[0];
+    const hint = first ? window.BiliCollector.explain(first.code) : '还有阶段未完成。';
+    const phaseName = first ? LABEL[first.phase] || first.phase : LABEL[pend[0]];
 
-    ORDER.forEach((k) => setRow(k, 'done', '完成'));
-    setRow('history', 'done', `${h} 条`);
-    setRow('following', 'done', `${f} 个`);
-    setRow('favorite', 'done', `${fav} 条`);
-    setRow('toview', 'done', `${tv} 条`);
-    setProgress(ORDER.length, 'done');
-
-    $('[data-c="history"]').textContent = h.toLocaleString();
-    $('[data-c="following"]').textContent = f.toLocaleString();
-    $('[data-c="favorite"]').textContent = fav.toLocaleString();
-    chips.hidden = false;
-
-    note.className = 'note';
-    note.textContent = cancelled
-      ? `已停止，用时 ${dur}。当前结果可以下载。`
-      : `完成，用时 ${dur}。数据只在本机，未上传。`;
-
-    btnStart.hidden = true;
-    btnDownload.hidden = false;
-    btnCopy.hidden = false;
+    setNote(`「${phaseName}」没跑完：${hint} 已采集的部分保留，处理后点「继续导出」。`, true);
+    btnStart.textContent = '继续导出';
+    linkRestart.hidden = false;
+    if (c.history + c.following + c.favorite + c.toview > 0) {
+      data = window.BiliCollector.toOutput(st);
+      window.__BFX_LAST__ = data;
+      btnDownload.hidden = false;
+      btnCopy.hidden = false;
+    }
   }
 
+  function firstErrorIndex(errs) {
+    return errs.length ? 0 : -1;
+  }
+
+  // ---------- 导出 ----------
   function filename() {
-    const d = new Date().toISOString().slice(0, 10);
-    return `bilibili-data-${d}.json`;
+    return `bilibili-data-${new Date().toISOString().slice(0, 10)}.json`;
   }
 
   function download() {
@@ -324,7 +395,7 @@
     const text = JSON.stringify(data);
     try {
       await navigator.clipboard.writeText(text);
-      note.textContent = '已复制到剪贴板。';
+      setNote('已复制到剪贴板。');
     } catch (e) {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -333,10 +404,19 @@
       ta.select();
       document.execCommand('copy');
       ta.remove();
-      note.textContent = '已复制到剪贴板。';
+      setNote('已复制到剪贴板。');
     }
   }
 
+  function restart() {
+    if (running) return;
+    clearCkpt();
+    st = null;
+    data = null;
+    showIdle();
+  }
+
+  // ---------- 事件 ----------
   root.addEventListener('click', (e) => {
     const t = e.target.closest('[data-a]');
     if (!t) return;
@@ -344,7 +424,7 @@
     if (a === 'toggle') {
       const willShow = panel.hidden;
       panel.hidden = !willShow;
-      if (willShow && !data && !running) reset();
+      if (willShow && !running) showIdle();
     } else if (a === 'close') {
       panel.hidden = true;
     } else if (a === 'start') {
@@ -353,11 +433,20 @@
       download();
     } else if (a === 'copy') {
       copy();
+    } else if (a === 'restart') {
+      e.preventDefault();
+      restart();
     } else if (a === 'about') {
       e.preventDefault();
-      try { chrome.runtime.openOptionsPage(); } catch (err) { window.open('https://www.bilibili.com', '_blank'); }
+      try { chrome.runtime.openOptionsPage(); } catch (err) {}
     }
   });
 
   $('.x').dataset.a = 'close';
+
+  // 首次挂载时不自动展开；有断点时给按钮加个提示点
+  const ck = loadCkpt();
+  if (ck && window.BiliCollector.pending(ck).length) {
+    $('[data-a="toggle"] span').textContent = '继续导出';
+  }
 })();

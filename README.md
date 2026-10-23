@@ -10,9 +10,10 @@
 ![界面](docs/screenshot-run.png)
 
 <p align="center">
-  <img src="docs/screenshot-idle.png" width="32%" alt="待开始">
-  <img src="docs/screenshot-run.png" width="32%" alt="采集中">
-  <img src="docs/screenshot-done.png" width="32%" alt="已完成">
+  <img src="docs/screenshot-idle.png" width="24%" alt="待开始">
+  <img src="docs/screenshot-run.png" width="24%" alt="采集中">
+  <img src="docs/screenshot-done.png" width="24%" alt="已完成">
+  <img src="docs/screenshot-resume.png" width="24%" alt="断点续跑">
 </p>
 
 ---
@@ -39,6 +40,8 @@ Edge 同理：`edge://extensions/`。
 4. 完成后点「下载 JSON」
 
 采集顺序：观看历史 → 关注 → 收藏夹 → 稍后再看。中途可以点「停止」，已采集的部分仍可下载。
+
+**中断可续跑。** 每完成一页都会写一次断点（`sessionStorage`）。网络断了、接口报错了、误关了页面，重新打开后按钮会变成「继续导出」，只补没跑完的部分，不会从头再来。
 
 ---
 
@@ -101,11 +104,19 @@ Edge 同理：`edge://extensions/`。
     }
   ],
 
-  "diag": { "history": 1208, "followings": 1818, "favorites": 258, "toview": 8 }
+  "diag": {
+    "history": 1208,
+    "followings": 1818,
+    "favorites": 258,
+    "toview": 8,
+    "errors": []            // 出错的阶段：[{ phase, code, message }]
+  }
 }
 ```
 
-`diag` 里会记录每一段在哪一步停止（`historyStop` / `followingStop`），方便排查接口变更。
+`diag.errors` 记录出错阶段与错误码。常见码的含义与处理见 [STATUS.md](STATUS.md)。
+
+即使有阶段没跑完，也允许先下载已采集的部分——数据不会因为一次失败全丢。
 
 ---
 
@@ -151,14 +162,24 @@ B 站接口随时可能变更。最近一次验证结果、各接口状态和常
 │   ├── collector.js   # 采集逻辑，纯函数，可单独测试
 │   ├── content.js     # 悬浮 UI（Shadow DOM 隔离样式）
 │   └── options.html   # 说明页
+├── test/
+│   └── smoke.mjs      # 冒烟测试：完整采集 / 中断续跑 / 错误码
+├── icons/             # 16/32/48/128
 ├── README.md
 ├── DISCLAIMER.md
+├── STATUS.md
 └── LICENSE
 ```
 
 改动后回到 `chrome://extensions/` 点刷新即可，无需重新加载。
 
 `collector.js` 不依赖 DOM，可以单独在 Node 里跑（需要注入一个 fetch 实现）。
+
+带一个冒烟测试，覆盖完整采集、中断续跑和错误码解释：
+
+```bash
+node test/smoke.mjs
+```
 
 ---
 
