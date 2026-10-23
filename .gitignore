@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+dist/
+*.zip
+# 导出的数据文件，避免误提交
+bilibili-data-*.json
+*.local.json

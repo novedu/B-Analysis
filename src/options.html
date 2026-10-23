@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B站数据导出器 · 说明</title>
+<style>
+  :root{
+    --ink:#10141a; --muted:#71767f; --line:#edeff2; --bg:#f6f7f9; --card:#fff;
+    --accent:#fb7299; --accent2:#00aeec;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --ink:#e9ecf1; --muted:#98a0ab; --line:#262b33; --bg:#101318; --card:#171a20; }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink); padding:48px 20px 80px;
+    font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px;margin:0 auto}
+  .hero{
+    background:linear-gradient(135deg,#12161c,#2a313d); color:#fff;
+    border-radius:20px; padding:32px 34px; margin-bottom:18px; position:relative; overflow:hidden;
+  }
+  .hero::after{
+    content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px;
+    background:radial-gradient(circle,rgba(251,114,153,.45),transparent 65%);
+  }
+  .hero h1{font-size:22px;letter-spacing:-.4px;font-weight:700}
+  .hero p{color:#a8b0bd;font-size:13px;margin-top:8px}
+  .hero .ver{position:absolute;right:24px;top:24px;font-size:11px;color:#8d95a3}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:14px}
+  h2{font-size:14px;font-weight:650;margin-bottom:12px;letter-spacing:-.1px}
+  p,li{font-size:13.5px;color:#3a4048}
+  @media (prefers-color-scheme: dark){ p,li{color:#c3c9d2} }
+  p+p{margin-top:10px}
+  ul{padding-left:18px;margin-top:8px}
+  li{margin:5px 0}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){ .two{grid-template-columns:1fr} }
+  .box{border-radius:12px;padding:16px 18px;font-size:13px}
+  .yes{background:#f0fbf4;border:1px solid #d3f3e0}
+  .no{background:#fdf3f4;border:1px solid #f8d8dc}
+  @media (prefers-color-scheme: dark){
+    .yes{background:#132a1d;border-color:#1f4a33}
+    .no{background:#2a1719;border-color:#4a2429}
+  }
+  .box h3{font-size:12.5px;font-weight:650;margin-bottom:8px;letter-spacing:.2px}
+  .yes h3{color:#0b8a4d}
+  .no h3{color:#c62b3c}
+  .box li{font-size:12.5px;margin:4px 0}
+  code{
+    font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:1px 5px;
+  }
+  .muted{color:var(--muted);font-size:12px}
+  .rule{height:1px;background:var(--line);margin:16px 0}
+  .tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;background:#fdf0f4;color:#d64c76;margin-right:6px}
+  a{color:var(--accent2);text-decoration:none;border-bottom:1px solid rgba(0,174,236,.3)}
+  footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:22px;line-height:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="ver">v0.1.0</span>
+    <h1>B站数据导出器</h1>
+    <p>把你自己的观看历史、关注、收藏和稍后再看，导成一个 JSON 文件。</p>
+  </div>
+
+  <div class="card">
+    <h2>这个插件做什么</h2>
+    <div class="two">
+      <div class="box yes">
+        <h3>会做的</h3>
+        <ul>
+          <li>读取你自己的观看历史</li>
+          <li>读取你的关注列表</li>
+          <li>读取你的收藏夹与稍后再看</li>
+          <li>在本地生成 JSON 文件</li>
+        </ul>
+      </div>
+      <div class="box no">
+        <h3>不会做的</h3>
+        <ul>
+          <li>不会点赞、评论、关注</li>
+          <li>不会修改你的任何数据</li>
+          <li>不会上传到任何服务器</li>
+          <li>不会读取 Cookie 内容</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>拿到的是什么</h2>
+    <p>一个 JSON 文件，包含四个数组/<code>object</code>：</p>
+    <ul>
+      <li><code>history</code> — 观看记录：标题、UP 主、观看时间、视频时长、看到第几秒、分区</li>
+      <li><code>followings</code> — 关注：UID、昵称、签名、认证、关注时间</li>
+      <li><code>favorites</code> — 收藏夹：按夹子分组，含标题、UP 主、时长、发布时间</li>
+      <li><code>toview</code> — 稍后再看：标题、UP 主、加入时间</li>
+    </ul>
+    <div class="rule"></div>
+    <p class="muted">字段说明见项目 README 的「数据格式」一节。</p>
+  </div>
+
+  <div class="card">
+    <h2>三个必须知道的限制</h2>
+    <ul>
+      <li><b>观看历史只有约 1200 条。</b>B 站只保留这么多，按每天 20–30 条算大约是 40–50 天，更早的拿不到。</li>
+      <li><b>关注列表单次接口只给 1000 条。</b>本插件用正序 + 倒序双向抓取来补全，通常能拿全。</li>
+      <li><b>点赞、投币、评论、弹幕、搜索历史都没有导出接口。</b>不是本插件的问题，是平台不提供。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>隐私</h2>
+    <p>所有请求都在你的浏览器里直接发往 <code>api.bilibili.com</code>，复用你已有的登录态。插件不读取、不存储、不上传 Cookie，也没有任何后端服务器。</p>
+    <p>导出的文件保存在你选择的下载目录里。<b>这个文件包含你的完整观看记录，请自行保管。</b></p>
+  </div>
+
+  <div class="card">
+    <h2>免责声明</h2>
+    <p>本项目仅供个人备份与分析自己的数据使用。使用前请确认符合你所在地区的法律法规与 B 站用户协议。</p>
+    <p>插件按「现状」提供，作者不对以下情况负责：账号被风控或限制、数据不完整、因使用本工具造成的任何直接或间接损失。</p>
+    <p class="muted">如果平台接口变更导致插件失效，属于正常情况，请关注仓库更新。</p>
+  </div>
+
+  <footer>
+    MIT License · 开源项目<br>
+    请勿用于批量采集他人账号或商业用途
+  </footer>
+
+</div>
+</body>
+</html>

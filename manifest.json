@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "B站数据导出器",
+  "version": "0.1.0",
+  "description": "导出你自己的 B 站观看历史、关注、收藏与稍后再看。只读采集，数据只存在你的电脑上。",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.bilibili.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.bilibili.com/*"],
+      "js": ["src/collector.js", "src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "B站数据导出器"
+  }
+}
