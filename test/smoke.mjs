@@ -103,5 +103,33 @@ eq('explain(-101) 含"登录"', explain(-101).includes('登录'), true);
 eq('explain(-352) 含"风控"', explain(-352).includes('风控'), true);
 eq('未知码有兜底', explain(-777).includes('-777'), true);
 
+// ---------- 用例 4：CSV ----------
+const { toCsv, csvCount } = window.BiliCollector;
+const sample = {
+  history: [
+    { bvid: 'BV1', title: '标题,带逗号', author: 'UP"引号', author_mid: 1, view_at: 1700000000, duration: 400, progress: 200, tname: '日常' },
+    { bvid: 'BV2', title: '看完了', author: 'up2', author_mid: 2, view_at: 1700000100, duration: 300, progress: -1, tname: '科技' },
+    { bvid: 'BV3', title: '没时长', author: 'up3', author_mid: 3, view_at: 1700000200, duration: 0, progress: 0, tname: null },
+    { bvid: 'BV4', title: 'b', author: 'up4', author_mid: 4, view_at: 1700000300, duration: 400, progress: 200, tname: 'x' }
+  ],
+  followings: [{ mid: 9, uname: '张三', sign: 'a,b', official: '', vip: 0, mtime: 1600000000 }],
+  favorites: { '技术': [{ bvid: 'BV9', title: 'x', upper: 'u', upper_mid: 3, duration: 60, fav_time: 1, pubtime: 1 }] },
+  toview: [{ bvid: 'BV8', title: 'y', author: 'z', duration: 30, add_at: 1, progress: -1 }]
+};
+
+const csvH = toCsv(sample, 'history');
+eq('CSV 带 BOM', csvH.content.charCodeAt(0), 0xFEFF);
+eq('CSV 表头列数', csvH.content.split('\r\n')[0].replace('\uFEFF', '').split(',').length, 10);
+eq('CSV 数据行数', csvH.content.trim().split('\r\n').length - 1, 4);
+eq('CSV 转义逗号与引号', csvH.content.includes('"标题,带逗号"') && csvH.content.includes('"UP""引号"'), true);
+const row4 = csvH.content.split('\r\n').find((l) => l.startsWith('BV4,')).split(',');
+eq('CSV 完成度=50', row4[7], '50');
+eq('CSV 已看完标 100 且标"是"', csvH.content.split('\r\n')[2].split(',')[7] === '100' && csvH.content.split('\r\n')[2].split(',')[8] === '是', true);
+eq('CSV 文件名含日期', /^bilibili-history-\d{4}-\d{2}-\d{2}\.csv$/.test(csvH.filename), true);
+eq('CSV 收藏夹含夹子列', toCsv(sample, 'favorites').content.includes('技术'), true);
+eq('csvCount 历史', csvCount(sample, 'history'), 4);
+eq('csvCount 关注', csvCount(sample, 'followings'), 1);
+eq('未知类型抛错', (() => { try { toCsv(sample, 'nope'); return false; } catch (e) { return true; } })(), true);
+
 console.log(`\n${fail === 0 ? '全部通过' : '有失败'}：${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

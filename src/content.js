@@ -40,10 +40,14 @@
     background:var(--bg); border-radius:20px; overflow:hidden;
     border:1px solid var(--line);
     box-shadow:0 30px 70px -20px rgba(16,24,40,.38), 0 6px 18px -8px rgba(16,24,40,.2);
+    max-height:calc(100vh - 110px); overflow-y:auto; overscroll-behavior:contain;
     animation:pop .24s cubic-bezier(.2,.8,.2,1) both;
     transform-origin:bottom right;
   }
   .panel[hidden]{ display:none; }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:#d6dae0; border-radius:3px; }
+  .panel::-webkit-scrollbar-track{ background:transparent; }
   @keyframes pop{ from{ opacity:0; transform:translateY(10px) scale(.97); } to{ opacity:1; transform:none; } }
 
   .accent{ height:3px; background:linear-gradient(90deg,#fb7299,#ff9ec0 45%,#00aeec); }
@@ -82,6 +86,19 @@
     text-decoration:none; border-bottom:1px dashed #c9ced6;
   }
   .relink:hover{ color:var(--accent); border-color:var(--accent); }
+  .csvbox{ margin:-6px 0 12px; }
+  .csvtoggle{ margin:0; }
+  .csvlist{ margin-top:8px; display:grid; gap:4px; }
+  .csvlist[hidden]{ display:none; }
+  .csvitem{
+    display:flex; align-items:center; justify-content:space-between;
+    height:32px; padding:0 10px; border:0; border-radius:8px; cursor:pointer;
+    background:var(--soft); color:var(--ink); font:inherit; font-size:12px;
+    transition:background .15s;
+  }
+  .csvitem:hover{ background:#eceef2; }
+  @media (prefers-color-scheme: dark){ .csvitem:hover{ background:#252a33; } }
+  .csvitem em{ font-style:normal; color:var(--muted); font-variant-numeric:tabular-nums; font-size:11.5px; }
   .relink[hidden]{ display:none; }
 
   .chips{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:2px 0 12px; }
@@ -137,6 +154,15 @@
         <div class="bar"><i></i></div>
         <p class="note">约需 1–3 分钟，取决于你的数据量。过程中请不要关闭或刷新本页。</p>
         <a class="relink" data-a="restart" href="#" hidden>重新开始</a>
+        <div class="csvbox" hidden>
+          <a class="relink csvtoggle" data-a="csvtoggle">导出 CSV（Excel 可直接打开）</a>
+          <div class="csvlist" hidden>
+            <button class="csvitem" data-csv="history"><span>观看历史</span><em>—</em></button>
+            <button class="csvitem" data-csv="followings"><span>关注列表</span><em>—</em></button>
+            <button class="csvitem" data-csv="favorites"><span>收藏夹</span><em>—</em></button>
+            <button class="csvitem" data-csv="toview"><span>稍后再看</span><em>—</em></button>
+          </div>
+        </div>
         <div class="chips" hidden>
           <div class="chip"><b data-c="history">0</b><span>条历史</span></div>
           <div class="chip"><b data-c="following">0</b><span>个关注</span></div>
@@ -189,6 +215,8 @@
   const btnDownload = $('[data-a="download"]');
   const btnCopy = $('[data-a="copy"]');
   const linkRestart = $('[data-a="restart"]');
+  const csvBox = $('.csvbox');
+  const csvList = $('.csvlist');
 
   let st = null;
   let running = false;
@@ -265,6 +293,7 @@
     btnDownload.hidden = true;
     btnCopy.hidden = true;
     chips.hidden = true;
+    showCsv(false);
     btnStart.hidden = false;
     btnStart.disabled = false;
 
@@ -349,6 +378,7 @@
       btnStart.hidden = true;
       btnDownload.hidden = false;
       btnCopy.hidden = false;
+      showCsv(true);
       return;
     }
 
@@ -365,6 +395,7 @@
       window.__BFX_LAST__ = data;
       btnDownload.hidden = false;
       btnCopy.hidden = false;
+      showCsv(true);
     }
   }
 
@@ -408,6 +439,30 @@
     }
   }
 
+  function showCsv(on) {
+    csvBox.hidden = !on;
+    if (!on) { csvList.hidden = true; return; }
+    if (!data) return;
+    csvList.querySelectorAll('[data-csv]').forEach((b) => {
+      const n = window.BiliCollector.csvCount(data, b.dataset.csv);
+      b.querySelector('em').textContent = n.toLocaleString() + ' 行';
+    });
+  }
+
+  function downloadCsv(kind) {
+    if (!data) return;
+    const { filename, content } = window.BiliCollector.toCsv(data, kind);
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
   function restart() {
     if (running) return;
     clearCkpt();
@@ -433,6 +488,9 @@
       download();
     } else if (a === 'copy') {
       copy();
+    } else if (a === 'csvtoggle') {
+      e.preventDefault();
+      csvList.hidden = !csvList.hidden;
     } else if (a === 'restart') {
       e.preventDefault();
       restart();
@@ -440,6 +498,11 @@
       e.preventDefault();
       try { chrome.runtime.openOptionsPage(); } catch (err) {}
     }
+  });
+
+  csvList.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-csv]');
+    if (b) { e.preventDefault(); downloadCsv(b.dataset.csv); }
   });
 
   $('.x').dataset.a = 'close';

@@ -270,12 +270,90 @@
     return st;
   }
 
+
+  // ---------- CSV 导出 ----------
+  const pad = (n) => String(n).padStart(2, '0');
+
+  function fmtTime(sec) {
+    if (!sec) return '';
+    const d = new Date(sec * 1000);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+           `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function cell(v) {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function build(headers, rows) {
+    const lines = [headers.map(cell).join(',')];
+    for (const r of rows) lines.push(r.map(cell).join(','));
+    // BOM 让 Excel 正确识别 UTF-8
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  const CSV_SPECS = {
+    history: {
+      name: 'history',
+      headers: ['视频ID', '标题', 'UP主', 'UP主ID', '观看时间', '时长(秒)', '看到(秒)', '完成度%', '是否看完', '分区'],
+      rows: (out) => out.history.map((x) => {
+        const finished = x.progress === -1;
+        const pct = finished ? 100
+          : (x.duration && x.progress >= 0 ? Math.round((x.progress / x.duration) * 100) : '');
+        return [x.bvid, x.title, x.author, x.author_mid, fmtTime(x.view_at),
+                x.duration || '', finished ? '' : x.progress, pct, finished ? '是' : '否', x.tname || ''];
+      })
+    },
+    followings: {
+      name: 'followings',
+      headers: ['UID', '昵称', '签名', '认证', '会员', '关注时间'],
+      rows: (out) => out.followings.map((x) => [x.mid, x.uname, x.sign, x.official, x.vip ? '是' : '否', fmtTime(x.mtime)])
+    },
+    favorites: {
+      name: 'favorites',
+      headers: ['收藏夹', '视频ID', '标题', 'UP主', 'UP主ID', '时长(秒)', '收藏时间', '发布时间'],
+      rows: (out) => {
+        const rows = [];
+        for (const [folder, items] of Object.entries(out.favorites)) {
+          for (const it of items) {
+            rows.push([folder, it.bvid, it.title, it.upper, it.upper_mid, it.duration || '',
+                       fmtTime(it.fav_time), fmtTime(it.pubtime)]);
+          }
+        }
+        return rows;
+      }
+    },
+    toview: {
+      name: 'toview',
+      headers: ['视频ID', '标题', 'UP主', '时长(秒)', '加入时间', '进度(秒)'],
+      rows: (out) => out.toview.map((x) => [x.bvid, x.title, x.author, x.duration || '', fmtTime(x.add_at), x.progress])
+    }
+  };
+
+  function toCsv(out, kind) {
+    const spec = CSV_SPECS[kind];
+    if (!spec) throw new Error('未知的 CSV 类型: ' + kind);
+    const date = new Date().toISOString().slice(0, 10);
+    return {
+      filename: `bilibili-${spec.name}-${date}.csv`,
+      content: build(spec.headers, spec.rows(out))
+    };
+  }
+
+  function csvCount(out, kind) {
+    const spec = CSV_SPECS[kind];
+    if (!spec) return 0;
+    return spec.rows(out).length;
+  }
+
   // 把内部状态转成对外文档化的 JSON 结构
   function toOutput(st) {
     const favTotal = Object.values(st.favorites.map).reduce((n, v) => n + v.length, 0);
     return {
       schemaVersion: 1,
-      generator: 'b-fenxi/0.2.1',
+      generator: 'b-fenxi/0.3.0',
       exportedAt: new Date().toISOString(),
       account: st.account,
       history: st.history.items,
@@ -303,5 +381,5 @@
     return out;
   }
 
-  window.BiliCollector = { collect, toOutput, emptyState, explain, pending };
+  window.BiliCollector = { collect, toOutput, emptyState, explain, pending, toCsv, csvCount };
 })();
