@@ -3,7 +3,12 @@
   "name": "B站数据导出器",
   "version": "0.1.0",
   "description": "导出你自己的 B 站观看历史、关注、收藏与稍后再看。只读采集，数据只存在你的电脑上。",
-  "permissions": ["storage"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "host_permissions": ["*://*.bilibili.com/*"],
   "content_scripts": [
     {
@@ -17,6 +22,12 @@
     "open_in_tab": true
   },
   "action": {
-    "default_title": "B站数据导出器"
+    "default_title": "B站数据导出器",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }
