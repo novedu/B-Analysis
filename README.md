@@ -7,16 +7,8 @@
 > 起因很简单：B 站只保留约 1200 条观看历史（大概 40 天），年度报告也只给你几个汇总数字。
 > 想回看"我这一年到底看了什么"，得自己攒。
 
-
 <p align="center">
-  <img src="docs/screenshot-idle.png" width="170" alt="待开始">
-  <img src="docs/screenshot-run.png" width="170" alt="采集中">
-  <img src="docs/screenshot-done.png" width="170" alt="已完成">
-  <img src="docs/screenshot-resume.png" width="170" alt="断点续跑">
-</p>
-
-<p align="center">
-  <img src="docs/screenshot-csv.png" width="260" alt="CSV 导出">
+  <img src="docs/preview.png" width="300" alt="界面预览">
 </p>
 
 ---
