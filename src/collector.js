@@ -275,7 +275,7 @@
     const favTotal = Object.values(st.favorites.map).reduce((n, v) => n + v.length, 0);
     return {
       schemaVersion: 1,
-      generator: 'b-fenxi/0.2.0',
+      generator: 'b-fenxi/0.2.1',
       exportedAt: new Date().toISOString(),
       account: st.account,
       history: st.history.items,
