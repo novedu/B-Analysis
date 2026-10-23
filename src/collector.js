@@ -56,7 +56,7 @@
     const api = makeApi(isCancelled);
     const out = {
       schemaVersion: 1,
-      generator: 'b-fenxi/0.1.0',
+      generator: 'b-fenxi/0.2.0',
       exportedAt: new Date().toISOString(),
       account: null,
       history: [],
